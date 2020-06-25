@@ -1,22 +1,23 @@
 #!/usr/bin/env bash
 set -e
-set -x
 
-: "${API_FIP:?Need to set API_FIP non-empty}"
-: "${INGRESS_FIP:?Need to set INGRESS_FIP non-empty}"
-: "${CLUSTER_NAME:?Need to set CLUSTER_NAME non-empty}"
-: "${BASE_DOMAIN:?Need to set BASE_DOMAIN non-empty}"
+API_FIP="10.0.110.87"
+INGRESS_FIP="10.0.111.125"
+CLUSTER_NAME="dzipi"
+# Somewhere you can create A* DNS entries
+export BASE_DOMAIN=patternfly.org
 
 # 4 VCPU, 8GB RAM
-MASTER_COUNT=3
-export OPENSTACK_FLAVOR=ci.m4.xlarge
-# 4 VCPU, 16GB RAM
+MASTER_COUNT=1
+export OPENSTACK_FLAVOR=ci.w1.large
+# 4 VCPU, 8GB RAM
 WORKER_COUNT=1
 export OPENSTACK_WORKER_FLAVOR=ci.w1.large
 export OPENSTACK_EXTERNAL_NETWORK=provider_net_shared_3
 CLUSTER_OS_IMAGE=rhcos-4.4.3
-export PULL_SECRET=$(cat zallen-auth.json      | tr -d '\t\r\n ')
-export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub | tr -d '\r\n')
+export PULL_SECRET=$(cat pull-secret.txt)
+# In case you have to ssh in and debug
+export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 
 create_install_config () {
   cat > install-config.yaml << EOF
@@ -62,9 +63,9 @@ sshKey: ${SSH_PUB_KEY}
 EOF
 }
 
-create_hosts() {
-  start_comment="# Generated for $CLUSTER_NAME"
-  end_comment="# End of $CLUSTER_NAME"
+append_hosts() {
+  start_comment="# Generated for ${CLUSTER_NAME}.${BASE_DOMAIN}"
+  end_comment="# End of ${CLUSTER_NAME}.${BASE_DOMAIN}"
   hosts="$start_comment
 $API_FIP api.${CLUSTER_NAME}.${BASE_DOMAIN}
 $INGRESS_FIP console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}
@@ -85,9 +86,11 @@ $end_comment"
 }
 
 create_install_config
-create_hosts
+append_hosts
 
 openshift-install create cluster
 
 # Attach the ingress port
-# openstack floating ip set --port $INGRESS_PORT $INGRESS_FIP
+echo "Attaching ingress FIP"
+INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
+openstack floating ip set --port $INGRESS_PORT $INGRESS_FIP
