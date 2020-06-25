@@ -117,7 +117,6 @@ echo "Attaching ingress FIP"
 INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
 openstack floating ip set --port $INGRESS_PORT $INGRESS_FIP
 
-echo ""
 cat << EOF
 Add the following IPs to your DNS server
 
