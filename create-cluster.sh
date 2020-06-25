@@ -7,7 +7,7 @@ set -e
 export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 
 # 4 VCPU, 8GB RAM
-MASTER_COUNT=2
+MASTER_COUNT=3
 export OPENSTACK_FLAVOR=ci.w1.large
 # 4 VCPU, 8GB RAM
 WORKER_COUNT=1
