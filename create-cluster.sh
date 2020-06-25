@@ -7,7 +7,7 @@ set -e
 export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 
 # 4 VCPU, 8GB RAM
-MASTER_COUNT=1
+MASTER_COUNT=2
 export OPENSTACK_FLAVOR=ci.w1.large
 # 4 VCPU, 8GB RAM
 WORKER_COUNT=1
@@ -18,12 +18,14 @@ export PULL_SECRET=$(cat pull-secret.txt)
 # In case you have to ssh in and debug
 export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 
-createFIPs() {
-  openstack floating ip create --description "${CLUSTER_NAME} API" provider_net_shared_3
-  openstack floating ip create --description "${CLUSTER_NAME} Ingress" provider_net_shared_3
+createFIP() {
+  local _type=$1
 
-  API_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} API" |awk '{print $1}')
-  INGRESS_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} Ingress" |awk '{print $1}')
+  if ! $(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} ${_type}" > /dev/null 2>&1); then
+    openstack floating ip create --description "${CLUSTER_NAME} ${_type}" provider_net_shared_3
+  else
+    echo "${CLUSTER_NAME} ${_type}: Already Exists"
+  fi
 }
 
 create_install_config() {
@@ -99,7 +101,12 @@ $end_comment"
 
 
 # execute
-createFIPs
+createFIP "API"
+API_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} API" |awk '{print $1}')
+
+createFIP "Ingress"
+INGRESS_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} Ingress" |awk '{print $1}')
+
 create_install_config
 append_hosts
 
@@ -109,3 +116,12 @@ openshift-install create cluster
 echo "Attaching ingress FIP"
 INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
 openstack floating ip set --port $INGRESS_PORT $INGRESS_FIP
+
+echo ""
+cat << EOF
+Add the following IPs to your DNS server
+
+  API_FIP: ${API_FIP}
+  INGRESS_FIP: ${INGRESS_FIP}
+EOF
+
