@@ -5,6 +5,7 @@ set -x
 : "${API_FIP:?Need to set API_FIP non-empty}"
 : "${INGRESS_FIP:?Need to set INGRESS_FIP non-empty}"
 : "${CLUSTER_NAME:?Need to set CLUSTER_NAME non-empty}"
+: "${BASE_DOMAIN:?Need to set BASE_DOMAIN non-empty}"
 
 # 4 VCPU, 8GB RAM
 MASTER_COUNT=3
@@ -16,7 +17,6 @@ export OPENSTACK_EXTERNAL_NETWORK=provider_net_shared_3
 CLUSTER_OS_IMAGE=rhcos-4.4.3
 export PULL_SECRET=$(cat zallen-auth.json      | tr -d '\t\r\n ')
 export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub | tr -d '\r\n')
-export BASE_DOMAIN=patternfly.org
 
 create_install_config () {
   cat > install-config.yaml << EOF
