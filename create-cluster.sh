@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
-API_FIP="10.0.110.87"
-INGRESS_FIP="10.0.111.125"
-CLUSTER_NAME="dzipi"
-# Somewhere you can create A* DNS entries
-export BASE_DOMAIN=patternfly.org
+: "${CLUSTER_NAME:?Need to set CLUSTER_NAME non-empty}"
+
+# Somewhere you can create A* DNS entries (default patternfly.org)
+export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 
 # 4 VCPU, 8GB RAM
 MASTER_COUNT=1
@@ -19,7 +18,15 @@ export PULL_SECRET=$(cat pull-secret.txt)
 # In case you have to ssh in and debug
 export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 
-create_install_config () {
+createFIPs() {
+  openstack floating ip create --description "${CLUSTER_NAME} API" provider_net_shared_3
+  openstack floating ip create --description "${CLUSTER_NAME} Ingress" provider_net_shared_3
+
+  API_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} API" |awk '{print $1}')
+  INGRESS_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} Ingress" |awk '{print $1}')
+}
+
+create_install_config() {
   cat > install-config.yaml << EOF
 apiVersion: v1
 baseDomain: ${BASE_DOMAIN}
@@ -80,11 +87,19 @@ $end_comment"
 
   if [ "${hosts}" != "${old_hosts}" ]; then
     echo "Updating hosts file"
-    sudo sed -i "${regex}d" /etc/hosts
+    # check if it is mac OS, sed is not GNU
+    if [ `uname -s` == "Darwin" ]; then
+      sudo sed -i '' "${regex}d" /etc/hosts
+    else
+      sudo sed -i "${regex}d" /etc/hosts
+    fi
     echo "$hosts" | sudo tee -a /etc/hosts
   fi
 }
 
+
+# execute
+createFIPs
 create_install_config
 append_hosts
 
