@@ -1,2 +1,18 @@
 /.idea/
 /deploy-openshift.iml
+
+# Private files
+pull-secret.txt
+*-openrc.sh
+clouds.yaml
+
+# Installer files
+auth
+tls
+.openshift_install_state.json
+metadata.json
+terraform.*
+*.log
+*.tar.gz
+*.crt
+*.key

@@ -18,15 +18,20 @@ export PULL_SECRET=$(cat pull-secret.txt)
 # In case you have to ssh in and debug
 export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 
-createFIP() {
-  local _type=$1
+getFIP() {
+  local _description="${CLUSTER_NAME} $1"
 
-  if ! $(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} ${_type}" > /dev/null 2>&1); then
-    openstack floating ip create --description "${CLUSTER_NAME} ${_type}" provider_net_shared_3
-  else
-    echo "${CLUSTER_NAME} ${_type}: Already Exists"
+  local _fip=$(openstack float ip list --long -c "Floating IP Address" -c Description -f value | grep "$_description" | awk 'NR==1 {print $1}')
+
+  if [ -z "$_fip" ]; then
+    _fip=$(openstack floating ip create --description "$_description" provider_net_shared_3 | awk '{print $4}')
   fi
+
+  echo "$_fip"
 }
+
+# imageContentSources:
+#  - source: quay.io/openshift-release-dev/ocp-release@4.4.9-x86_64
 
 create_install_config() {
   cat > install-config.yaml << EOF
@@ -65,8 +70,6 @@ platform:
     clusterOSImage:   ${CLUSTER_OS_IMAGE}
     computeFlavor:    ${OPENSTACK_FLAVOR}
     lbFloatingIP:     "${API_FIP}"
-    trunkSupport:     "0"
-publish: External
 pullSecret: '${PULL_SECRET}'
 sshKey: ${SSH_PUB_KEY}
 EOF
@@ -99,28 +102,22 @@ $end_comment"
   fi
 }
 
-
 # execute
-createFIP "API"
-API_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} API" |awk '{print $1}')
-
-createFIP "Ingress"
-INGRESS_FIP=$(openstack float ip list --long -c "Floating IP Address" -c "Description" -f value |grep "${CLUSTER_NAME} Ingress" |awk '{print $1}')
+API_FIP=$(getFIP "API")
+INGRESS_FIP=$(getFIP "Ingress")
 
 create_install_config
 append_hosts
 
 openshift-install create cluster
 
-# Attach the ingress port
-echo "Attaching ingress FIP"
 INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
+echo "Attaching ingress port ${INGRESS_PORT} to FIP ${INGRESS_FIP}"
 openstack floating ip set --port ${INGRESS_PORT} ${INGRESS_FIP}
 
-cat << EOF
-Add the following entries to your DNS server
+echo "
+Create the following DNS entries:
 
   api.${CLUSTER_NAME}.${BASE_DOMAIN}.  IN  A  ${API_FIP}
   *.apps.${CLUSTER_NAME}.${BASE_DOMAIN}. IN  A ${INGRESS_FIP}
-EOF
-
+"
