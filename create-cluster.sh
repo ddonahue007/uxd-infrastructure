@@ -115,12 +115,12 @@ openshift-install create cluster
 # Attach the ingress port
 echo "Attaching ingress FIP"
 INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
-openstack floating ip set --port $INGRESS_PORT $INGRESS_FIP
+openstack floating ip set --port ${INGRESS_PORT} ${INGRESS_FIP}
 
 cat << EOF
-Add the following IPs to your DNS server
+Add the following entries to your DNS server
 
-  API_FIP: ${API_FIP}
-  INGRESS_FIP: ${INGRESS_FIP}
+  api.${CLUSTER_NAME}.${BASE_DOMAIN}.  IN  A  ${API_FIP}
+  *.apps.${CLUSTER_NAME}.${BASE_DOMAIN}. IN  A ${INGRESS_FIP}
 EOF
 
