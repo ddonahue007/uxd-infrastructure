@@ -1,7 +1,23 @@
 #!/usr/bin/env bash
 set -e
 
-: "${CLUSTER_NAME:?Need to set CLUSTER_NAME non-empty}"
+usage() { echo "Usage: $0 [-c <cluster_name>"  1>&2; exit 1; }
+
+while getopts ":c:" o; do
+    case "${o}" in
+       c)
+            CLUSTER_NAME=${OPTARG}
+            ;;
+       *)
+            usage
+            ;;
+    esac
+done
+shift $((OPTIND-1))
+
+if [ -z "${CLUSTER_NAME}" ]; then
+    usage
+fi
 
 # Somewhere you can create A* DNS entries (default patternfly.org)
 export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
