@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
-usage() { echo "Usage: $0 [-c <cluster_name>"  1>&2; exit 1; }
+usage() { echo "Usage: $0 [-c <cluster_name> -b <baseDomain>]"  1>&2; exit 1; }
 
-while getopts ":c:" o; do
+while getopts ":c:b:" o; do
     case "${o}" in
        c)
-            CLUSTER_NAME=${OPTARG}
-            ;;
+          CLUSTER_NAME=${OPTARG}
+          ;;
+       b)
+          BASE_DOMAIN=${OPTARG}
+          ;;
        *)
-            usage
-            ;;
+          usage
+          ;;
     esac
 done
 shift $((OPTIND-1))
