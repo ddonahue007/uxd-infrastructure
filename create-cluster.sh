@@ -6,12 +6,12 @@ set -e
 # Somewhere you can create A* DNS entries (default patternfly.org)
 export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 
-# 4 VCPU, 8GB RAM
+# 4 VCPU, 16GB RAM
 MASTER_COUNT=3
-export OPENSTACK_FLAVOR=ci.w1.large
-# 4 VCPU, 8GB RAM
-WORKER_COUNT=1
-export OPENSTACK_WORKER_FLAVOR=ci.w1.large
+export OPENSTACK_FLAVOR=quicklab.ocp4.master
+# 2 VCPU, 8GB RAM
+WORKER_COUNT=3
+export OPENSTACK_WORKER_FLAVOR=quicklab.ocp4.worker
 export OPENSTACK_EXTERNAL_NETWORK=provider_net_shared_3
 CLUSTER_OS_IMAGE=rhcos-4.4.3
 export PULL_SECRET=$(cat pull-secret.txt)
@@ -21,10 +21,10 @@ export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 getFIP() {
   local _description="${CLUSTER_NAME} $1"
 
-  local _fip=$(openstack float ip list --long -c "Floating IP Address" -c Description -f value | grep "$_description" | awk 'NR==1 {print $1}')
+  local _fip=$(openstack floating ip list --long -c "Floating IP Address" -c Description -f value | grep "$_description" | awk 'NR==1 {print $1}')
 
   if [ -z "$_fip" ]; then
-    _fip=$(openstack floating ip create --description "$_description" provider_net_shared_3 | awk '{print $4}')
+    _fip=$(openstack floating ip create --description "$_description" provider_net_shared_3 -f value -c floating_ip_address)
   fi
 
   echo "$_fip"
