@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 set -e
 
-usage() { echo "Usage: $0 [-c <cluster_name> -b <baseDomain>]"  1>&2; exit 1; }
+usage() { echo "Usage: $0 -c <clusterName> [ -b <baseDomain> -m <masterImage> -n <nasterCount> -w <workerImage> -x <workerCount> ]"  1>&2; exit 1; }
 
-while getopts ":c:b:" o; do
+while getopts ":c:b:m:n:w:x:" o; do
     case "${o}" in
-       c)
+        c)
           CLUSTER_NAME=${OPTARG}
           ;;
-       b)
+        b)
           BASE_DOMAIN=${OPTARG}
+          ;;
+        m)
+          OPENSTACK_MASTER_FLAVOR=${OPTARG}
+          ;;
+        n)
+          MASTER_COUNT=${OPTARG}
+          ;;
+        w)
+          OPENSTACK_WORKER_FLAVOR=${OPTARG}
+          ;;
+        x)
+          WORKER_COUNT=${OPTARG}
           ;;
        *)
           usage
@@ -18,22 +30,29 @@ while getopts ":c:b:" o; do
 done
 shift $((OPTIND-1))
 
+# required args
 if [ -z "${CLUSTER_NAME}" ]; then
+    echo "clusterName is a required argument"
     usage
 fi
 
 # Somewhere you can create A* DNS entries (default patternfly.org)
 export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 
-# 4 VCPU, 16GB RAM
-MASTER_COUNT=3
-export OPENSTACK_FLAVOR=quicklab.ocp4.master
-# 2 VCPU, 8GB RAM
-WORKER_COUNT=3
-export OPENSTACK_WORKER_FLAVOR=quicklab.ocp4.worker
+# default cnt: 3 servers
+MASTER_COUNT=${MASTER_COUNT:-3}
+# default flavor: quicklab.ocp4.master
+export OPENSTACK_MASTER_FLAVOR=${OPENSTACK_MASTER_FLAVOR:-quicklab.ocp4.master}
+
+# default cnt: 3 servers
+WORKER_COUNT=${WORKER_COUNT:-3}
+# default flavor: quicklab.ocp4.worker (2 VCPU, 8GB RAM)
+export OPENSTACK_WORKER_FLAVOR=${OPENSTACK_WORKER_FLAVOR:-quicklab.ocp4.worker}
+
 export OPENSTACK_EXTERNAL_NETWORK=provider_net_shared_3
 CLUSTER_OS_IMAGE=rhcos-4.4.3
 export PULL_SECRET=$(cat pull-secret.txt)
+
 # In case you have to ssh in and debug
 export SSH_PUB_KEY=$(cat $HOME/.ssh/id_rsa.pub)
 
@@ -87,7 +106,7 @@ platform:
     cloud: openstack
     externalNetwork:  ${OPENSTACK_EXTERNAL_NETWORK}
     clusterOSImage:   ${CLUSTER_OS_IMAGE}
-    computeFlavor:    ${OPENSTACK_FLAVOR}
+    computeFlavor:    ${OPENSTACK_MASTER_FLAVOR}
     lbFloatingIP:     "${API_FIP}"
 pullSecret: '${PULL_SECRET}'
 sshKey: ${SSH_PUB_KEY}
