@@ -1,39 +1,72 @@
 #!/usr/bin/env bash
 set -e
 
-usage() { echo "Usage: $0 -c <clusterName> [ -b <baseDomain> -m <masterImage> -n <nasterCount> -w <workerImage> -x <workerCount> ]"  1>&2; exit 1; }
+usage() {
+  cat << EOF
+Usage: $0
+  Required Args:
+    -c <clusterName>      (example: mycluster01)
+    -a <machineNetworkIP> (example: 172:18.0.0)
 
-while getopts ":c:b:m:n:w:x:" o; do
-    case "${o}" in
-        c)
-          CLUSTER_NAME=${OPTARG}
-          ;;
-        b)
-          BASE_DOMAIN=${OPTARG}
-          ;;
-        m)
-          OPENSTACK_MASTER_FLAVOR=${OPTARG}
-          ;;
-        n)
-          MASTER_COUNT=${OPTARG}
-          ;;
-        w)
-          OPENSTACK_WORKER_FLAVOR=${OPTARG}
-          ;;
-        x)
-          WORKER_COUNT=${OPTARG}
-          ;;
-       *)
-          usage
-          ;;
-    esac
+  Optional Args:
+    -b <baseDomain>     (default: patternfly.org)
+    -m <masterFlavor>   (default: quicklab.ocp4.master)
+    -n <masterCount>    (default: 3)
+    -w <workerFlavor>   (default: quicklab.ocp4.worker)
+    -x <workerCount>    (default: 3)
+    -h (echo this message)
+EOF
+  exit 1
+}
+
+while getopts ":a:b:c:m:n:w:x:h:" o; do
+  case "${o}" in
+    a)
+      MACH_NET_ADDR=${OPTARG}
+      ;;
+    b)
+      BASE_DOMAIN=${OPTARG}
+      ;;
+    c)
+      CLUSTER_NAME=${OPTARG}
+      ;;
+    m)
+      MASTER_FLAVOR=${OPTARG}
+      ;;
+    n)
+      MASTER_COUNT=${OPTARG}
+      ;;
+    w)
+      WORKER_FLAVOR=${OPTARG}
+      ;;
+    x)
+      WORKER_COUNT=${OPTARG}
+      ;;
+    h)
+      usage
+      ;;
+    *)
+      usage
+      ;;
+  esac
 done
 shift $((OPTIND-1))
 
 # required args
 if [ -z "${CLUSTER_NAME}" ]; then
-    echo "clusterName is a required argument"
-    usage
+  echo "ERROR: clusterName is a required argument!
+  Example: -c mycluster"
+  usage
+
+elif [[ "${CLUSTER_NAME}" =~ [^a-z0-9] ]]; then
+  echo "ERROR: clusterName must be all lower case and only contain alphanumeric characters!
+  Exmaples: mycluster, mycluster001"
+fi
+
+if [ -z "${MACH_NET_ADDR}" ]; then
+  echo "ERROR: machineNetworkIP is a required argument!
+  Example: -a 172.30.0.0"
+  usage
 fi
 
 # Somewhere you can create A* DNS entries (default patternfly.org)
@@ -42,12 +75,12 @@ export BASE_DOMAIN=${BASE_DOMAIN:-patternfly.org}
 # default cnt: 3 servers
 MASTER_COUNT=${MASTER_COUNT:-3}
 # default flavor: quicklab.ocp4.master
-export OPENSTACK_MASTER_FLAVOR=${OPENSTACK_MASTER_FLAVOR:-quicklab.ocp4.master}
+export MASTER_FLAVOR=${MASTER_FLAVOR:-quicklab.ocp4.master}
 
 # default cnt: 3 servers
 WORKER_COUNT=${WORKER_COUNT:-3}
 # default flavor: quicklab.ocp4.worker (2 VCPU, 8GB RAM)
-export OPENSTACK_WORKER_FLAVOR=${OPENSTACK_WORKER_FLAVOR:-quicklab.ocp4.worker}
+export WORKER_FLAVOR=${WORKER_FLAVOR:-quicklab.ocp4.worker}
 
 export OPENSTACK_EXTERNAL_NETWORK=provider_net_shared_3
 CLUSTER_OS_IMAGE=rhcos-4.4.3
@@ -68,6 +101,30 @@ getFIP() {
   echo "$_fip"
 }
 
+# validate a given flavor is available
+isFlavor() {
+  local _flavor=$1
+  if ! openstack flavor show ${_flavor} > /dev/null 2>&1; then
+    echo "ERROR: cluster flavor does not exist: ${_flavor}"
+    exit 2
+  fi
+}
+
+# validate if the given ip address range is already used
+isMachineNetUsed() {
+  local netIP=$1
+  local netName=$2
+
+  if openstack floating ip list -c "Fixed IP Address" -f value \
+  |grep $(echo ${netIP} |awk -F. '{print$1"."$2}') > /dev/null 2>&1; then
+    echo "ERROR: IP Range Already In Use: ${netIP}"
+    exit 3
+  else
+    echo "INFO: Using IP Range ${mName}/16 for ${netName}"
+  fi
+}
+
+
 # imageContentSources:
 #  - source: quay.io/openshift-release-dev/ocp-release@4.4.9-x86_64
 
@@ -81,7 +138,7 @@ compute:
   name: worker
   platform:
     openstack:
-      type: ${OPENSTACK_WORKER_FLAVOR}
+      type: ${WORKER_FLAVOR}
   replicas: ${WORKER_COUNT}
 controlPlane:
   architecture: amd64
@@ -97,7 +154,7 @@ networking:
   - cidr: 172.20.0.0/14
     hostPrefix: 23
   machineNetwork:
-  - cidr: 172.18.0.0/16
+  - cidr: ${MACH_NET_ADDR}/16
   networkType: OpenShiftSDN
   serviceNetwork:
   - 172.19.0.0/16
@@ -106,7 +163,7 @@ platform:
     cloud: openstack
     externalNetwork:  ${OPENSTACK_EXTERNAL_NETWORK}
     clusterOSImage:   ${CLUSTER_OS_IMAGE}
-    computeFlavor:    ${OPENSTACK_MASTER_FLAVOR}
+    computeFlavor:    ${MASTER_FLAVOR}
     lbFloatingIP:     "${API_FIP}"
 pullSecret: '${PULL_SECRET}'
 sshKey: ${SSH_PUB_KEY}
@@ -143,6 +200,11 @@ $end_comment"
 # execute
 API_FIP=$(getFIP "API")
 INGRESS_FIP=$(getFIP "Ingress")
+
+isFlavor ${MASTER_FLAVOR}
+isFlavor ${WORKER_FLAVOR}
+
+isNetUsed ${MACH_NET_ADDR} machineNetwork
 
 create_install_config
 append_hosts
