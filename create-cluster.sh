@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
 set -e
 
-usage() { echo "Usage: $0 -c <clusterName> -a <machineNetworkIP>[ -b <baseDomain> -m <masterImage> -n <nasterCount> -w <workerImage> -x <workerCount> ]"  1>&2; exit 1; }
+usage() {
+  cat << EOF
+Usage: $0
+  Required Args:
+    -c <clusterName>      (example: mycluster01)
+    -a <machineNetworkIP> (example: 172:18.0.0)
 
-while getopts ":a:b:c:m:n:w:x:" o; do
+  Optional Args:
+    -b <baseDomain>     (default: patternfly.org)
+    -m <masterFlavor>   (default: quicklab.ocp4.master)
+    -n <nasterCount>    (default: 3)
+    -w <workerFlavor>   (default: quicklab.ocp4.worker)
+    -x <workerCount>    (default: 3)
+    -h (echo this message)
+EOF
+  exit 1
+}
+
+while getopts ":a:b:c:m:n:w:x:h:" o; do
   case "${o}" in
     a)
       MACH_NET_ADDR=${OPTARG}
@@ -26,7 +42,10 @@ while getopts ":a:b:c:m:n:w:x:" o; do
     x)
       WORKER_COUNT=${OPTARG}
       ;;
-   *)
+    h)
+      usage
+      ;;
+    *)
       usage
       ;;
   esac
