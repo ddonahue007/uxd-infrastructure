@@ -11,7 +11,7 @@ Usage: $0
   Optional Args:
     -b <baseDomain>     (default: patternfly.org)
     -m <masterFlavor>   (default: quicklab.ocp4.master)
-    -n <nasterCount>    (default: 3)
+    -n <masterCount>    (default: 3)
     -w <workerFlavor>   (default: quicklab.ocp4.worker)
     -x <workerCount>    (default: 3)
     -h (echo this message)
