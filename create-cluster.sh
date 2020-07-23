@@ -111,7 +111,7 @@ isFlavor() {
 }
 
 # validate if the given ip address range is already used
-isMachineNetUsed() {
+isNetUsed() {
   local netIP=$1
   local netName=$2
 
@@ -120,7 +120,7 @@ isMachineNetUsed() {
     echo "ERROR: IP Range Already In Use: ${netIP}"
     exit 3
   else
-    echo "INFO: Using IP Range ${mName}/16 for ${netName}"
+    echo "INFO: Using IP Range ${netIP}/16 for ${netName}"
   fi
 }
 
