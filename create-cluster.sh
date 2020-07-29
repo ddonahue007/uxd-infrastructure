@@ -209,11 +209,7 @@ isNetUsed ${MACH_NET_ADDR} machineNetwork
 create_install_config
 append_hosts
 
-// create install-dir if it does not exist
-if [ ! -d ./cluster_install_dirs/${CLUSTER_NAME} ]; then
-  mkdir -p ./cluster_install_dirs/${CLUSTER_NAME}
-fi
-openshift-install create cluster --dir ./cluster_install_dirs/${CLUSTER_NAME}
+openshift-install create cluster
 
 INGRESS_PORT=$(openstack port list --format value -c Name | awk "/${CLUSTER_NAME}.*-ingress-port/ {print}")
 echo "Attaching ingress port ${INGRESS_PORT} to FIP ${INGRESS_FIP}"
