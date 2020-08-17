@@ -6,7 +6,7 @@ usage() {
 Usage: $0
   Required Args:
     -c <clusterName>      (example: mycluster01)
-    -a <machineNetworkIP> (example: 172:18.0.0)
+    -a <machineNetworkIP> (example: 172.18.0.0)
 
   Optional Args:
     -b <baseDomain>     (default: patternfly.org)
